@@ -68,3 +68,14 @@ npm run sync:dictionary -- --base-url=https://poneglyph.one
 
 That updates `src/data/dictionary.json` from `/v1/decks/dictionary`.
 
+## GitHub Actions Publish
+
+This repo includes a publish workflow at `.github/workflows/publish.yml`.
+
+- It runs on pushes to `main`.
+- It installs dependencies and runs `npm test`.
+- It checks whether `package.json`'s version already exists on npm.
+- It publishes only when that exact version is not already published.
+- It skips publish cleanly if `NPM_TOKEN` is not configured yet.
+
+Set `NPM_TOKEN` in the GitHub repository secrets before relying on the workflow.

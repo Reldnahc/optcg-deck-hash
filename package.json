@@ -4,6 +4,14 @@
   "description": "OPTCG deck hash codec with bundled dictionary snapshot and optional API refresh",
   "type": "module",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Reldnahc/optcg-deck-hash.git"
+  },
+  "homepage": "https://github.com/Reldnahc/optcg-deck-hash#readme",
+  "bugs": {
+    "url": "https://github.com/Reldnahc/optcg-deck-hash/issues"
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -19,6 +27,9 @@
   ],
   "engines": {
     "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json && node scripts/copy-assets.mjs",
