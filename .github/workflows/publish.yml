@@ -1,27 +1,44 @@
-name: Publish
+name: Publish Package
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
-  workflow_dispatch:
+      - master
+    paths:
+      - "package.json"
+      - "package-lock.json"
+      - "src/**"
+      - "scripts/**"
+      - "test/**"
+      - "tsconfig.json"
+      - "README.md"
+      - "LICENSE"
+      - ".github/workflows/publish.yml"
 
 permissions:
-  contents: read
+  contents: write
   id-token: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
   publish:
+    if: github.actor != 'github-actions[bot]' && !contains(github.event.head_commit.message, '[skip ci]')
     runs-on: ubuntu-latest
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
           registry-url: https://registry.npmjs.org
 
       - name: Install dependencies
@@ -30,36 +47,31 @@ jobs:
       - name: Test package
         run: npm test
 
-      - name: Check npm for existing version
-        id: package_version
-        shell: bash
+      - name: Bump patch version
+        id: version_bump
         run: |
+          OLD_VERSION=$(node -p "require('./package.json').version")
+          npm version patch --no-git-tag-version
           PACKAGE_NAME=$(node -p "require('./package.json').name")
           PACKAGE_VERSION=$(node -p "require('./package.json').version")
-          if npm view "${PACKAGE_NAME}@${PACKAGE_VERSION}" version >/dev/null 2>&1; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Check npm token configuration
-        id: npm_token
-        shell: bash
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          if [ -n "${NODE_AUTH_TOKEN}" ]; then
-            echo "configured=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "configured=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Skip publish when npm token is missing
-        if: steps.npm_token.outputs.configured != 'true'
-        run: echo "NPM_TOKEN is not configured for this repository. Skipping npm publish."
+          echo "name=$PACKAGE_NAME" >> "$GITHUB_OUTPUT"
+          echo "old_version=$OLD_VERSION" >> "$GITHUB_OUTPUT"
+          echo "version=$PACKAGE_VERSION" >> "$GITHUB_OUTPUT"
+          echo "Bumped $PACKAGE_NAME from $OLD_VERSION to $PACKAGE_VERSION" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Publish to npm
-        if: steps.package_version.outputs.exists == 'false' && steps.npm_token.outputs.configured == 'true'
-        run: npm publish --access public --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public
+
+      - name: Commit version bump
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          git commit -m "chore: bump optcg-deck-hash to v${{ steps.version_bump.outputs.version }} [skip ci]"
+          git tag "v${{ steps.version_bump.outputs.version }}"
+          git push origin HEAD:${GITHUB_REF_NAME}
+          git push origin "v${{ steps.version_bump.outputs.version }}"
+
+      - name: Summarize published version
+        run: |
+          echo "Published ${{ steps.version_bump.outputs.name }}@${{ steps.version_bump.outputs.version }}" >> "$GITHUB_STEP_SUMMARY"

@@ -70,12 +70,20 @@ That updates `src/data/dictionary.json` from `/v1/decks/dictionary`.
 
 ## GitHub Actions Publish
 
-This repo includes a publish workflow at `.github/workflows/publish.yml`.
+This repo includes a trusted-publishing workflow at `.github/workflows/publish.yml`.
 
-- It runs on pushes to `main`.
+- It runs on pushes to `main` and `master`.
+- It also supports manual `workflow_dispatch`.
 - It installs dependencies and runs `npm test`.
-- It checks whether `package.json`'s version already exists on npm.
-- It publishes only when that exact version is not already published.
-- It skips publish cleanly if `NPM_TOKEN` is not configured yet.
+- It bumps the patch version automatically before publish.
+- It publishes with npm trusted publishing via GitHub Actions OIDC.
+- It commits the version bump and tags the release after publish.
 
-Set `NPM_TOKEN` in the GitHub repository secrets before relying on the workflow.
+Trusted publisher settings on npm should be:
+
+- Organization or user: `Reldnahc`
+- Repository: `optcg-deck-hash`
+- Workflow filename: `publish.yml`
+- Environment name: leave blank unless you later protect publishes with a GitHub environment
+
+Important: npm trusted publishing currently appears to require the package to already exist on npm before you can configure the trusted publisher in the npm UI. In practice that means a one-time bootstrap publish is still needed for a brand-new package before the OIDC workflow can take over.
