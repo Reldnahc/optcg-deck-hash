@@ -1,6 +1,6 @@
 {
   "name": "optcg-deck-hash",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "OPTCG deck hash codec with bundled dictionary snapshot and optional API refresh",
   "type": "module",
   "license": "MIT",
