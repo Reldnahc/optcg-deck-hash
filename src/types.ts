@@ -35,6 +35,7 @@ export type CompressionMode = "auto" | "raw";
 
 export type EncodeDeckHashOptions = {
   compression?: CompressionMode;
+  refreshOnMissingCard?: boolean;
 };
 
 export type DecodeDeckHashOptions = {
@@ -42,7 +43,7 @@ export type DecodeDeckHashOptions = {
 };
 
 export type FetchDeckDictionaryOptions = {
-  baseUrl: string;
+  baseUrl?: string;
   fetch?: typeof globalThis.fetch;
   signal?: AbortSignal;
   etag?: string | null;
@@ -64,4 +65,3 @@ export type CreateDeckHashCodecOptions = {
   dictionarySource?: DeckHashDictionarySource | null;
   compression?: CompressionMode;
 };
-

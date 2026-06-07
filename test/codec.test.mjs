@@ -48,9 +48,10 @@ await run("top-level bundled codec roundtrips a deck", async () => {
   });
 });
 
-await run("encode uses raw card fallback without calling the dictionary source", async () => {
+await run("encode refreshes once for missing cards before falling back to raw strings", async () => {
   let sourceCalls = 0;
   const codec = createDeckHashCodec({
+    dictionary: ["OP01-001"],
     dictionarySource: {
       async loadDictionary(current) {
         sourceCalls += 1;
@@ -67,10 +68,65 @@ await run("encode uses raw card fallback without calling the dictionary source",
 
   const decoded = await codec.decode(hash);
 
-  assert.equal(sourceCalls, 0);
+  assert.equal(sourceCalls, 1);
   assert.deepEqual(decoded, {
     leader: null,
     main: [{ card_number: "ZZ99-999", count: 4 }],
+    don: null,
+  });
+});
+
+await run("encode uses refreshed dictionary ids when the source contains missing cards", async () => {
+  let sourceCalls = 0;
+  const refreshedDictionary = ["OP01-001", "OP99-999"];
+  const codec = createDeckHashCodec({
+    dictionary: ["OP01-001"],
+    dictionarySource: {
+      async loadDictionary() {
+        sourceCalls += 1;
+        return refreshedDictionary;
+      },
+    },
+  });
+
+  const hash = await codec.encode({
+    leader: null,
+    main: [{ card_number: "OP99-999", count: 4 }],
+    don: null,
+  }, { compression: "raw" });
+
+  const rawPayload = hash.slice(1);
+  assert.equal(sourceCalls, 1);
+  assert.equal(rawPayload.includes("OP99-999"), false);
+  assert.deepEqual(await codec.decode(hash), {
+    leader: null,
+    main: [{ card_number: "OP99-999", count: 4 }],
+    don: null,
+  });
+});
+
+await run("encode can skip missing-card refresh when explicitly disabled", async () => {
+  let sourceCalls = 0;
+  const codec = createDeckHashCodec({
+    dictionary: ["OP01-001"],
+    dictionarySource: {
+      async loadDictionary() {
+        sourceCalls += 1;
+        return ["OP01-001", "OP99-999"];
+      },
+    },
+  });
+
+  const hash = await codec.encode({
+    leader: null,
+    main: [{ card_number: "OP99-999", count: 4 }],
+    don: null,
+  }, { compression: "raw", refreshOnMissingCard: false });
+
+  assert.equal(sourceCalls, 0);
+  assert.deepEqual(await codec.decode(hash), {
+    leader: null,
+    main: [{ card_number: "OP99-999", count: 4 }],
     don: null,
   });
 });
@@ -129,7 +185,7 @@ await run("decode throws unknown dictionary id when no source is configured", as
 
 await run("fetchDeckDictionary parses the API envelope and ETag", async () => {
   const result = await fetchDeckDictionary({
-    baseUrl: "https://poneglyph.one",
+    baseUrl: "https://api.poneglyph.one",
     fetch: async () => new Response(
       JSON.stringify({ data: ["OP01-001", "OP01-006"] }),
       {
@@ -144,10 +200,25 @@ await run("fetchDeckDictionary parses the API envelope and ETag", async () => {
   assert.deepEqual(result.dictionary?.cards, ["OP01-001", "OP01-006"]);
 });
 
+await run("api dictionary source defaults to the production API origin", async () => {
+  const bundled = getBundledDeckHashDictionary();
+  let requestedUrl = "";
+  const source = createApiDeckHashDictionarySource({
+    fetch: async (url) => {
+      requestedUrl = String(url);
+      return new Response(null, { status: 304 });
+    },
+  });
+
+  const next = await source.loadDictionary(bundled);
+  assert.strictEqual(next, bundled);
+  assert.equal(requestedUrl, "https://api.poneglyph.one/v1/decks/dictionary");
+});
+
 await run("api dictionary source reuses the current dictionary on 304", async () => {
   const bundled = getBundledDeckHashDictionary();
   const source = createApiDeckHashDictionarySource({
-    baseUrl: "https://poneglyph.one",
+    baseUrl: "https://api.poneglyph.one",
     fetch: async () => new Response(null, { status: 304 }),
   });
 

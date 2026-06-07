@@ -53,6 +53,11 @@ export class DeckHashCodec {
   }
 
   async encode(deck: DeckHashDeck, options: EncodeDeckHashOptions = {}): Promise<string> {
+    const shouldRefresh = options.refreshOnMissingCard ?? true;
+    if (shouldRefresh && this.dictionarySource && hasMissingDictionaryCards(deck, this.dictionary)) {
+      await this.refreshDictionary();
+    }
+
     const writer = new BitWriter();
 
     writer.writeBit(deck.leader ? 1 : 0);
@@ -133,6 +138,16 @@ export async function decodeDeckHash(
   options: DecodeDeckHashOptions = {},
 ): Promise<DeckHashDeck> {
   return bundledCodec.decode(hash, options);
+}
+
+function hasMissingDictionaryCards(deck: DeckHashDeck, dictionary: DeckHashDictionary) {
+  const entries = [
+    ...(deck.leader ? [deck.leader] : []),
+    ...(deck.don ? [deck.don] : []),
+    ...deck.main,
+  ];
+
+  return entries.some((entry) => getDictionaryId(entry.card_number.toUpperCase(), dictionary) == null);
 }
 
 async function decodeDeckHashWithDictionary(

@@ -5,6 +5,8 @@ import type {
   FetchDeckDictionaryResult,
 } from "./types.js";
 
+export const DEFAULT_DECK_HASH_API_BASE_URL = "https://api.poneglyph.one";
+
 export async function fetchDeckDictionary(
   options: FetchDeckDictionaryOptions,
 ): Promise<FetchDeckDictionaryResult> {
@@ -18,7 +20,7 @@ export async function fetchDeckDictionary(
     headers.set("If-None-Match", options.etag);
   }
 
-  const url = buildDictionaryUrl(options.baseUrl);
+  const url = buildDictionaryUrl(options.baseUrl ?? DEFAULT_DECK_HASH_API_BASE_URL);
   const init: RequestInit = {
     headers,
     ...(options.signal ? { signal: options.signal } : {}),
@@ -57,7 +59,7 @@ export async function fetchDeckDictionary(
 }
 
 export function createApiDeckHashDictionarySource(
-  options: Omit<FetchDeckDictionaryOptions, "etag">,
+  options: Omit<FetchDeckDictionaryOptions, "etag"> = {},
 ): DeckHashDictionarySource {
   return {
     async loadDictionary(current) {

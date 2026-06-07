@@ -4,7 +4,7 @@ Standalone deck hash codec for OPTCG.
 
 The package ships with a bundled card dictionary snapshot. That gives you deterministic offline encode/decode out of the box.
 
-For newest-card support, configure the API helper. The codec will only call the API on decode if it hits an unknown dictionary id and needs a newer dictionary snapshot to recover the card number.
+For newest-card support, configure the API helper. The codec uses the bundled dictionary first, then refreshes from the API when encode sees a missing card number or decode hits an unknown dictionary id.
 
 ## Install
 
@@ -35,9 +35,7 @@ import {
 } from "optcg-deck-hash";
 
 const codec = createDeckHashCodec({
-  dictionarySource: createApiDeckHashDictionarySource({
-    baseUrl: "https://poneglyph.one",
-  }),
+  dictionarySource: createApiDeckHashDictionarySource(),
 });
 
 const hash = await codec.encode(deck);
@@ -47,7 +45,7 @@ const decoded = await codec.decode(hash);
 In that mode:
 
 - the bundled dictionary is used first
-- `encode()` does not call the API if a card is missing from the bundled dictionary
+- `encode()` retries once with the API if a card is missing from the bundled dictionary
 - `decode()` retries once with the API only if it encounters an unknown dictionary id
 
 ## Dictionary Refresh
@@ -63,7 +61,7 @@ Use this when you want proactive newest-card support instead of waiting for a de
 Refresh the bundled snapshot before publish:
 
 ```bash
-npm run sync:dictionary -- --base-url=https://poneglyph.one
+npm run sync:dictionary -- --base-url=https://api.poneglyph.one
 ```
 
 That updates `src/data/dictionary.json` from `/v1/decks/dictionary`.
