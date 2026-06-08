@@ -23,6 +23,7 @@ const ALNUM = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const STANDARD_FAMILIES = ["P", "OP", "ST", "EB", "PRB", "EX"] as const;
 const DICTIONARY_ID_BITS = 14;
 const MAX_DICTIONARY_ID = (1 << DICTIONARY_ID_BITS) - 1;
+const MAX_PACKED_ENTRY_COUNT = 8;
 const SMALL_DELTA_MAX = 16;
 const MEDIUM_DELTA_MAX = 272;
 
@@ -75,8 +76,8 @@ export class DeckHashCodec {
       writeString(writer, deck.format);
     }
 
-    const mainEntries = [...deck.main]
-      .filter((entry) => entry.count > 0)
+    const mainEntries = deck.main
+      .flatMap(chunkMainEntry)
       .sort((left, right) => compareEntriesForEncoding(left, right, this.dictionary));
 
     writer.writeVarUint(mainEntries.length);
@@ -535,7 +536,25 @@ function readString(reader: BitReader) {
 }
 
 function normalizeCount(value: number) {
-  return Math.max(1, Math.min(8, Math.trunc(value)));
+  return Math.max(1, Math.min(MAX_PACKED_ENTRY_COUNT, Math.trunc(value)));
+}
+
+function chunkMainEntry(entry: DeckHashEntry): DeckHashEntry[] {
+  let remaining = Math.trunc(entry.count);
+  if (!Number.isFinite(remaining) || remaining <= 0) {
+    return [];
+  }
+
+  const chunks: DeckHashEntry[] = [];
+  while (remaining > 0) {
+    const count = Math.min(MAX_PACKED_ENTRY_COUNT, remaining);
+    chunks.push({
+      ...entry,
+      count,
+    });
+    remaining -= count;
+  }
+  return chunks;
 }
 
 function buildDecodedDeck(

@@ -105,6 +105,28 @@ await run("encode uses refreshed dictionary ids when the source contains missing
   });
 });
 
+await run("encode chunks main deck counts above the packed entry limit", async () => {
+  const codec = createDeckHashCodec({
+    dictionary: ["OP01-001", "OP01-006"],
+  });
+
+  const hash = await codec.encode({
+    leader: { card_number: "OP01-001", count: 1 },
+    main: [{ card_number: "OP01-006", count: 18 }],
+    don: null,
+  }, { compression: "raw" });
+
+  assert.deepEqual(await codec.decode(hash), {
+    leader: { card_number: "OP01-001", count: 1 },
+    main: [
+      { card_number: "OP01-006", count: 8 },
+      { card_number: "OP01-006", count: 8 },
+      { card_number: "OP01-006", count: 2 },
+    ],
+    don: null,
+  });
+});
+
 await run("encode can skip missing-card refresh when explicitly disabled", async () => {
   let sourceCalls = 0;
   const codec = createDeckHashCodec({
