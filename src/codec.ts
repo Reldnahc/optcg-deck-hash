@@ -161,12 +161,15 @@ async function decodeDeckHashWithDictionary(
 
   if (!hash.includes(".")) {
     const payload = base64UrlToUint8(hash);
+    let bytes: Uint8Array;
     try {
-      const bytes = await withTimeout(decompressPayload(payload), COMPRESSION_TIMEOUT_MS);
-      return decodePackedDeck(bytes, dictionary);
+      bytes = await withTimeout(decompressPayload(payload), COMPRESSION_TIMEOUT_MS);
     } catch {
+      // Older unprefixed raw hashes still need the decompression fallback.
       return decodePackedDeck(payload, dictionary);
     }
+    // Parsing failures must reach the caller, especially unknown IDs that trigger refresh.
+    return decodePackedDeck(bytes, dictionary);
   }
 
   const [version, payload] = hash.split(".", 2);
